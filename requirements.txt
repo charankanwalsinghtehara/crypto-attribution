@@ -19,3 +19,4 @@ python-dotenv>=1.0.1
 # PostgreSQL driver for Python 3.14 (has official Windows wheels)
 # This is Psycopg 3 – modern, recommended
 psycopg[binary]>=3.2.0
+pqcrypto>=0.3.4

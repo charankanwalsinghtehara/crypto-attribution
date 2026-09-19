@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: crypto_attribution
+      POSTGRES_USER: crypto
+      POSTGRES_PASSWORD: CHANGE_ME_IN_AIRGAPPED_ENVIRONMENT
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - secure_net
+
+  backend:
+    build:
+      context: ..
+      dockerfile: offline/Dockerfile.backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://crypto:CHANGE_ME_IN_AIRGAPPED_ENVIRONMENT@postgres:5432/crypto_attribution
+      SECRET_KEY: CHANGE_ME_LONG_RANDOM_SECRET
+      REQUIRE_REAL_PQ: "true"
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+    networks:
+      - secure_net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: offline/Dockerfile.frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    networks:
+      - secure_net
+
+networks:
+  secure_net:
+
+volumes:
+  postgres_data:

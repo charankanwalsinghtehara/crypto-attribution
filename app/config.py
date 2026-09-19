@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
+    REQUIRE_REAL_PQ: bool = True
     """Application configuration. PostgreSQL is required."""
 
     DATABASE_URL: str

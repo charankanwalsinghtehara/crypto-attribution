@@ -1,95 +1,52 @@
 """
-Digital signatures using NIST ML-DSA (Dilithium) when available.
+NIST-standardized ML-DSA implementation for SIH26237.
 
-The code first tries real post-quantum libraries (pqcrypto / quantcrypt).
-If they are not installed it falls back to Ed25519 so the rest of the
-system remains fully functional for development and demos.
-
-Replace the fallback with a real ML-DSA implementation for production.
+Production/SIH mode requires the real pqcrypto ML-DSA implementation.
+No classical Ed25519 fallback is silently accepted.
 """
-
 from __future__ import annotations
-import hashlib
-from typing import Tuple
-
-# ---------------------------------------------------------------------------
-# Try real PQ libraries
-# ---------------------------------------------------------------------------
-HAS_REAL_PQ = False
-_pq_impl = None
 
 try:
-    from pqcrypto.sign import ml_dsa_65 as dilithium
-    HAS_REAL_PQ = True
-    _pq_impl = "pqcrypto"
-except ImportError:
-    try:
-        # Alternative package name variations
-        from quantcrypt.dss import Dilithium
-        HAS_REAL_PQ = True
-        _pq_impl = "quantcrypt"
-    except ImportError:
-        pass
-
-# Classical fallback (Ed25519) – clearly marked
-from cryptography.hazmat.primitives.asymmetric import ed25519
-from cryptography.hazmat.primitives import serialization
-
-
-def generate_dilithium_keypair() -> Tuple[str, str]:
-    """
-    Returns (public_key_hex, private_key_hex)
-    """
-    if HAS_REAL_PQ and _pq_impl == "pqcrypto":
-        pk, sk = dilithium.generate_keypair()
-        return pk.hex(), sk.hex()
-
-    # ---- FALLBACK (Ed25519) ----
-    private_key = ed25519.Ed25519PrivateKey.generate()
-    public_key = private_key.public_key()
-    sk_bytes = private_key.private_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PrivateFormat.Raw,
-        encryption_algorithm=serialization.NoEncryption(),
+    from pqcrypto.sign.ml_dsa_65 import (
+        generate_keypair,
+        sign,
+        verify,
+        PUBLIC_KEY_SIZE,
+        SECRET_KEY_SIZE,
+        SIGNATURE_SIZE,
     )
-    pk_bytes = public_key.public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    )
-    return pk_bytes.hex(), sk_bytes.hex()
+    REAL_PQ = True
+except ImportError as exc:
+    REAL_PQ = False
+    _IMPORT_ERROR = exc
 
+    def _missing(*args, **kwargs):
+        raise RuntimeError(
+            "NIST ML-DSA-65 is required for SIH26237. "
+            "Install the 'pqcrypto' package before starting the application."
+        ) from _IMPORT_ERROR
 
-def dilithium_sign(private_key_hex: str, message: bytes) -> str:
-    """Sign message → hex signature"""
-    if HAS_REAL_PQ and _pq_impl == "pqcrypto":
-        sk = bytes.fromhex(private_key_hex)
-        sig = dilithium.sign(sk, message)
-        return sig.hex()
-
-    # ---- FALLBACK ----
-    sk = ed25519.Ed25519PrivateKey.from_private_bytes(bytes.fromhex(private_key_hex))
-    return sk.sign(message).hex()
-
-
-def dilithium_verify(public_key_hex: str, message: bytes, signature_hex: str) -> bool:
-    """Verify signature. Returns True if valid."""
-    if HAS_REAL_PQ and _pq_impl == "pqcrypto":
-        try:
-            pk = bytes.fromhex(public_key_hex)
-            sig = bytes.fromhex(signature_hex)
-            dilithium.verify(pk, message, sig)
-            return True
-        except Exception:
-            return False
-
-    # ---- FALLBACK ----
-    try:
-        pk = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex(public_key_hex))
-        pk.verify(bytes.fromhex(signature_hex), message)
-        return True
-    except Exception:
-        return False
+    generate_keypair = _missing
+    sign = _missing
+    verify = _missing
+    PUBLIC_KEY_SIZE = SECRET_KEY_SIZE = SIGNATURE_SIZE = 0
 
 
 def is_using_real_pq() -> bool:
-    return HAS_REAL_PQ
+    return REAL_PQ
+
+
+def generate_dilithium_keypair():
+    return generate_keypair()
+
+
+def sign_message(private_key: bytes, message: bytes) -> bytes:
+    return sign(message, private_key)
+
+
+def verify_signature(public_key: bytes, message: bytes, signature: bytes) -> bool:
+    try:
+        verify(public_key, message, signature)
+        return True
+    except Exception:
+        return False
