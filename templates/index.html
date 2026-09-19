@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Attribution – Offline Test UI</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🔐 Cryptographic Attribution & Immutable Decryption Provenance</h1>
+    <p>Offline / Air-gapped · Post-Quantum Signatures · Forensic Watermark · Local DLT Ledger</p>
+    <nav>
+      <a href="#register">Register</a>
+      <a href="#upload">Upload Document</a>
+      <a href="#decrypt">Decrypt + Watermark</a>
+      <a href="#forensic">Forensic Identify</a>
+      <a href="#ledger">Ledger</a>
+      <a href="/docs" target="_blank">Swagger API</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Status -->
+    <div class="card">
+      <h2>System Status</h2>
+      <button onclick="checkStatus()">Refresh Crypto Status</button>
+      <div id="statusOut" class="pre" style="margin-top:1rem">Click to load…</div>
+    </div>
+
+    <!-- Register -->
+    <div class="card" id="register">
+      <h2>1. Register User (generates Dilithium + Kyber keypair)</h2>
+      <div class="grid-2">
+        <div>
+          <label>Username</label>
+          <input id="regUser" placeholder="alice" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="regPass" type="password" placeholder="secret123" />
+        </div>
+      </div>
+      <label>Email (optional)</label>
+      <input id="regEmail" placeholder="alice@example.com" />
+      <button onclick="registerUser()">Register</button>
+      <div id="regOut" class="pre" style="margin-top:1rem;display:none"></div>
+    </div>
+
+    <!-- List users -->
+    <div class="card">
+      <h2>Registered Users</h2>
+      <button onclick="listUsers()" class="secondary">Refresh List</button>
+      <div id="usersOut" class="pre" style="margin-top:1rem">…</div>
+    </div>
+
+    <!-- Upload -->
+    <div class="card" id="upload">
+      <h2>2. Upload Document (sender distributes to recipients)</h2>
+      <label>Title</label>
+      <input id="docTitle" placeholder="Confidential Report Q3" />
+      <label>Sender User ID</label>
+      <input id="senderId" type="number" placeholder="1" />
+      <label>Recipient IDs (comma separated)</label>
+      <input id="recipientIds" placeholder="2,3" />
+      <label>File (PDF preferred for watermark demo)</label>
+      <input id="docFile" type="file" />
+      <button onclick="uploadDoc()">Upload & Distribute</button>
+      <div id="uploadOut" class="pre" style="margin-top:1rem;display:none"></div>
+    </div>
+
+    <!-- Documents list -->
+    <div class="card">
+      <h2>Documents</h2>
+      <button onclick="listDocs()" class="secondary">Refresh</button>
+      <div id="docsOut" class="pre" style="margin-top:1rem">…</div>
+    </div>
+
+    <!-- Decrypt -->
+    <div class="card" id="decrypt">
+      <h2>3. Decrypt (generates unique invisible watermark + signs + commits to ledger)</h2>
+      <div class="grid-2">
+        <div>
+          <label>Document ID</label>
+          <input id="decDocId" type="number" placeholder="1" />
+        </div>
+        <div>
+          <label>Recipient User ID</label>
+          <input id="decRecId" type="number" placeholder="2" />
+        </div>
+      </div>
+      <button class="success" onclick="doDecrypt()">Decrypt & Watermark</button>
+      <div id="decOut" class="pre" style="margin-top:1rem;display:none"></div>
+    </div>
+
+    <!-- Forensic -->
+    <div class="card" id="forensic">
+      <h2>4. Forensic Attribution (upload a leaked copy)</h2>
+      <label>Leaked file</label>
+      <input id="leakedFile" type="file" />
+      <button onclick="identifyLeaker()">Identify Recipient</button>
+      <div id="forOut" class="pre" style="margin-top:1rem;display:none"></div>
+    </div>
+
+    <!-- Ledger -->
+    <div class="card" id="ledger">
+      <h2>5. Immutable Ledger</h2>
+      <button onclick="verifyLedger()" class="secondary">Verify Chain Integrity</button>
+      <button onclick="listBlocks()" class="secondary">List Blocks</button>
+      <div id="ledOut" class="pre" style="margin-top:1rem">…</div>
+    </div>
+  </main>
+
+  <footer>
+    Fully offline · No cloud KMS · No public blockchain · NIST PQ ready (with classical fallback)
+  </footer>
+
+  <script>
+    const api = (path, opts = {}) => fetch(path, opts).then(r => r.json());
+
+    async function checkStatus() {
+      const d = await api("/users/crypto/status");
+      document.getElementById("statusOut").textContent = JSON.stringify(d, null, 2);
+    }
+
+    async function registerUser() {
+      const body = {
+        username: document.getElementById("regUser").value,
+        password: document.getElementById("regPass").value,
+        email: document.getElementById("regEmail").value || null,
+      };
+      const res = await fetch("/users/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      const el = document.getElementById("regOut");
+      el.style.display = "block";
+      el.textContent = JSON.stringify(data, null, 2);
+      listUsers();
+    }
+
+    async function listUsers() {
+      const data = await api("/users/");
+      document.getElementById("usersOut").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function uploadDoc() {
+      const fd = new FormData();
+      fd.append("title", document.getElementById("docTitle").value);
+      fd.append("sender_id", document.getElementById("senderId").value);
+      fd.append("recipient_ids", document.getElementById("recipientIds").value);
+      const file = document.getElementById("docFile").files[0];
+      if (!file) { alert("Choose a file"); return; }
+      fd.append("file", file);
+      const res = await fetch("/documents/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      const el = document.getElementById("uploadOut");
+      el.style.display = "block";
+      el.textContent = JSON.stringify(data, null, 2);
+      listDocs();
+    }
+
+    async function listDocs() {
+      const data = await api("/documents/");
+      document.getElementById("docsOut").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function doDecrypt() {
+      const docId = document.getElementById("decDocId").value;
+      const recId = document.getElementById("decRecId").value;
+      const res = await fetch(`/decrypt/${docId}?recipient_id=${recId}`, { method: "POST" });
+      const data = await res.json();
+      const el = document.getElementById("decOut");
+      el.style.display = "block";
+      el.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function identifyLeaker() {
+      const file = document.getElementById("leakedFile").files[0];
+      if (!file) { alert("Choose a leaked file"); return; }
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/forensic/identify", { method: "POST", body: fd });
+      const data = await res.json();
+      const el = document.getElementById("forOut");
+      el.style.display = "block";
+      el.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function verifyLedger() {
+      const data = await api("/forensic/ledger/verify");
+      document.getElementById("ledOut").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function listBlocks() {
+      const data = await api("/forensic/ledger/blocks");
+      document.getElementById("ledOut").textContent = JSON.stringify(data, null, 2);
+    }
+
+    // initial load
+    listUsers();
+    listDocs();
+    checkStatus();
+  </script>
+</body>
+</html>

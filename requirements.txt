@@ -1,0 +1,21 @@
+# Compatible with Python 3.14 on Windows
+# Uses pre-built wheels – no Visual C++ Build Tools required
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+sqlalchemy>=2.0.36
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+python-multipart>=0.0.12
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+aiofiles>=24.1.0
+pypdf>=5.0.0
+reportlab>=4.2.0
+cryptography>=43.0.0
+jinja2>=3.1.4
+python-dotenv>=1.0.1
+
+# PostgreSQL driver for Python 3.14 (has official Windows wheels)
+# This is Psycopg 3 – modern, recommended
+psycopg[binary]>=3.2.0
